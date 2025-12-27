@@ -1,0 +1,6 @@
+# Run tests first - if they fail, abort the commit
+npm test
+
+# Rebuild dist/ and add it to the commit
+npm run bundle
+git add dist/

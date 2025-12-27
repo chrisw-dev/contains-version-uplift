@@ -1,0 +1,37 @@
+name: 'Dependency Version Uplift Check'
+description: 'Detects and reports dependency version changes in Pull Requests across multiple ecosystems'
+author: 'Your Name'
+
+branding:
+  icon: 'package'
+  color: 'blue'
+
+inputs:
+  token:
+    description: 'GitHub token for API access (used for PR comments)'
+    required: false
+    default: ${{ github.token }}
+  ecosystems:
+    description: 'Comma-separated list of ecosystems to check. Options: node, python, go, ruby, java, rust, dotnet. Use "all" for all ecosystems.'
+    required: false
+    default: 'all'
+  comment-on-pr:
+    description: 'Whether to post a comment on the PR with the results'
+    required: false
+    default: 'true'
+  include-dev-dependencies:
+    description: 'Whether to include dev/test dependencies in the check'
+    required: false
+    default: 'true'
+
+outputs:
+  has-changes:
+    description: 'Boolean indicating whether any dependency version changes were detected'
+  changes-json:
+    description: 'JSON string containing all detected dependency changes'
+  changes-count:
+    description: 'Total number of dependency changes detected'
+
+runs:
+  using: 'node20'
+  main: 'dist/index.js'
