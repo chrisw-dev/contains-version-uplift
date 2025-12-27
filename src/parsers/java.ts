@@ -134,13 +134,6 @@ export function parseBuildGradle(content: string): ParsedDependencies[] {
     // compile 'group:artifact:version'
     // etc.
 
-    const patterns = [
-      // String literal with single or double quotes
-      /(?:implementation|api|compile|runtimeOnly|compileOnly)\s*(?:\()?['"]([\w.-]+):([\w.-]+):([\w.-]+)['"]/g,
-      // Test dependencies
-      /(?:testImplementation|testCompile|testRuntimeOnly|androidTestImplementation)\s*(?:\()?['"]([\w.-]+):([\w.-]+):([\w.-]+)['"]/g,
-    ];
-
     // Production dependencies
     let match;
     const prodPattern =

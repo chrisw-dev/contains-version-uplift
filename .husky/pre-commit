@@ -2,6 +2,9 @@
 npm run format
 git add -u
 
+# Run linter - if it fails, abort the commit
+npm run lint
+
 # Run tests - if they fail, abort the commit
 npm test
 

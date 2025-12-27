@@ -3,7 +3,7 @@ import * as exec from '@actions/exec';
 import * as github from '@actions/github';
 import { DependencyChange, ActionInputs, Ecosystem, VALID_ECOSYSTEMS } from './types';
 import { getParserForFile, DEPENDENCY_FILE_PATTERNS } from './parsers';
-import { compareVersions, determineChangeType } from './version';
+import { compareVersions } from './version';
 import { createOrUpdateComment } from './comment';
 
 /**
@@ -180,7 +180,7 @@ async function analyzeFile(
       newTypeDeps,
       parser.ecosystem,
       filePath,
-      depType as any
+      depType as 'production' | 'development' | 'optional' | 'peer' | 'build' | 'test'
     );
     changes.push(...typeChanges);
   }

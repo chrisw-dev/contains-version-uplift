@@ -5,7 +5,7 @@ import { parseGoMod, parseGoSum } from './go';
 import { parseGemfile, parseGemfileLock } from './ruby';
 import { parsePomXml, parseBuildGradle } from './java';
 import { parseCargoToml, parseCargoLock } from './rust';
-import { parseCsproj, parsePackagesConfig } from './dotnet';
+import { parseCsproj } from './dotnet';
 
 export interface DependencyFilePattern {
   ecosystem: Ecosystem;
