@@ -1,4 +1,9 @@
-import { parseRequirementsTxt, parsePyprojectToml, parsePipfile, parsePoetryLock } from '../../src/parsers/python';
+import {
+  parseRequirementsTxt,
+  parsePyprojectToml,
+  parsePipfile,
+  parsePoetryLock,
+} from '../../src/parsers/python';
 import { ParsedDependencies } from '../../src/types';
 
 describe('Python Parsers', () => {
@@ -68,7 +73,7 @@ dev = [
       const result = parsePyprojectToml(content);
 
       expect(result).toHaveLength(2);
-      
+
       const prodDeps = result.find((r: ParsedDependencies) => r.dependencyType === 'production');
       expect(prodDeps?.dependencies.get('requests')).toBe('2.31.0');
 
@@ -93,7 +98,7 @@ pytest = "^7.0.0"
       const result = parsePyprojectToml(content);
 
       expect(result).toHaveLength(2);
-      
+
       const prodDeps = result.find((r: ParsedDependencies) => r.dependencyType === 'production');
       expect(prodDeps?.dependencies.get('requests')).toBe('^2.31.0');
       expect(prodDeps?.dependencies.get('flask')).toBe('^2.0.0');
@@ -136,7 +141,7 @@ pytest = ">=7.0.0"
       const result = parsePipfile(content);
 
       expect(result).toHaveLength(2);
-      
+
       const prodDeps = result.find((r: ParsedDependencies) => r.dependencyType === 'production');
       expect(prodDeps?.dependencies.get('requests')).toBe('==2.31.0');
 
@@ -161,7 +166,7 @@ category = "dev"
       const result = parsePoetryLock(content);
 
       expect(result).toHaveLength(2);
-      
+
       const prodDeps = result.find((r: ParsedDependencies) => r.dependencyType === 'production');
       expect(prodDeps?.dependencies.get('requests')).toBe('2.31.0');
 

@@ -1,4 +1,8 @@
-# Run tests first - if they fail, abort the commit
+# Format code first
+npm run format
+git add -u
+
+# Run tests - if they fail, abort the commit
 npm test
 
 # Rebuild dist/ and add it to the commit

@@ -113,9 +113,13 @@ export function parsePackageLockJson(content: string): ParsedDependencies[] {
     if (lock.packages) {
       for (const [path, info] of Object.entries(lock.packages)) {
         if (!path || path === '') continue; // Skip root package
-        
+
         // Extract package name from path (e.g., "node_modules/@types/node" -> "@types/node")
-        const name = path.replace(/^node_modules\//, '').split('node_modules/').pop() || '';
+        const name =
+          path
+            .replace(/^node_modules\//, '')
+            .split('node_modules/')
+            .pop() || '';
         if (!name || !info.version) continue;
 
         if (info.dev) {
@@ -160,12 +164,12 @@ export function parseYarnLock(content: string): ParsedDependencies[] {
   try {
     const deps = new Map<string, string>();
     const lines = content.split('\n');
-    
+
     let currentPackage: string | null = null;
-    
+
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
-      
+
       // Package header lines look like:
       // "@babel/core@^7.0.0":
       // or: lodash@^4.17.0:
@@ -187,7 +191,7 @@ export function parseYarnLock(content: string): ParsedDependencies[] {
           }
         }
       }
-      
+
       // Version line looks like: "  version "7.23.0""
       if (currentPackage && line.trim().startsWith('version')) {
         const versionMatch = line.match(/version\s+"?([^"\s]+)"?/);
@@ -214,10 +218,13 @@ export function parseYarnLock(content: string): ParsedDependencies[] {
 
 interface PnpmLockfile {
   packages?: Record<string, { version?: string; dev?: boolean }>;
-  importers?: Record<string, {
-    dependencies?: Record<string, { version: string }>;
-    devDependencies?: Record<string, { version: string }>;
-  }>;
+  importers?: Record<
+    string,
+    {
+      dependencies?: Record<string, { version: string }>;
+      devDependencies?: Record<string, { version: string }>;
+    }
+  >;
 }
 
 /**
@@ -260,7 +267,7 @@ export function parsePnpmLock(content: string): ParsedDependencies[] {
         if (match && match[1] && match[2]) {
           const name = match[1].startsWith('/') ? match[1].slice(1) : match[1];
           const version = match[2];
-          
+
           if (info.dev) {
             devDeps.set(name, version);
           } else {

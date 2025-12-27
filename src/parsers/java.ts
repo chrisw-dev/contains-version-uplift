@@ -3,23 +3,29 @@ import { parseString } from 'xml2js';
 
 interface PomXml {
   project?: {
-    dependencies?: [{
-      dependency?: Array<{
-        groupId?: string[];
-        artifactId?: string[];
-        version?: string[];
-        scope?: string[];
-      }>;
-    }];
-    dependencyManagement?: [{
-      dependencies?: [{
+    dependencies?: [
+      {
         dependency?: Array<{
           groupId?: string[];
           artifactId?: string[];
           version?: string[];
+          scope?: string[];
         }>;
-      }];
-    }];
+      },
+    ];
+    dependencyManagement?: [
+      {
+        dependencies?: [
+          {
+            dependency?: Array<{
+              groupId?: string[];
+              artifactId?: string[];
+              version?: string[];
+            }>;
+          },
+        ];
+      },
+    ];
   };
 }
 
@@ -34,19 +40,23 @@ export function parsePomXml(content: string): ParsedDependencies[] {
   try {
     // Synchronous parsing using callback with security options
     let parsed: PomXml | null = null;
-    parseString(content, { 
-      async: false,
-      // Security: Disable external entities to prevent XXE attacks
-      explicitCharkey: false,
-      trim: true,
-      normalize: true,
-      // Prevent entity expansion attacks
-      strict: true,
-    }, (err: Error | null, result: PomXml) => {
-      if (!err) {
-        parsed = result;
+    parseString(
+      content,
+      {
+        async: false,
+        // Security: Disable external entities to prevent XXE attacks
+        explicitCharkey: false,
+        trim: true,
+        normalize: true,
+        // Prevent entity expansion attacks
+        strict: true,
+      },
+      (err: Error | null, result: PomXml) => {
+        if (!err) {
+          parsed = result;
+        }
       }
-    });
+    );
 
     if (!parsed) {
       return [];
@@ -133,7 +143,8 @@ export function parseBuildGradle(content: string): ParsedDependencies[] {
 
     // Production dependencies
     let match;
-    const prodPattern = /(?:implementation|api|compile|runtimeOnly|compileOnly)\s*(?:\()?['"]([\w.-]+):([\w.-]+):([\w.-]+)['"]/g;
+    const prodPattern =
+      /(?:implementation|api|compile|runtimeOnly|compileOnly)\s*(?:\()?['"]([\w.-]+):([\w.-]+):([\w.-]+)['"]/g;
     while ((match = prodPattern.exec(content)) !== null) {
       const name = `${match[1]}:${match[2]}`;
       const version = match[3];
@@ -141,7 +152,8 @@ export function parseBuildGradle(content: string): ParsedDependencies[] {
     }
 
     // Test dependencies
-    const testPattern = /(?:testImplementation|testCompile|testRuntimeOnly|androidTestImplementation)\s*(?:\()?['"]([\w.-]+):([\w.-]+):([\w.-]+)['"]/g;
+    const testPattern =
+      /(?:testImplementation|testCompile|testRuntimeOnly|androidTestImplementation)\s*(?:\()?['"]([\w.-]+):([\w.-]+):([\w.-]+)['"]/g;
     while ((match = testPattern.exec(content)) !== null) {
       const name = `${match[1]}:${match[2]}`;
       const version = match[3];
@@ -149,14 +161,16 @@ export function parseBuildGradle(content: string): ParsedDependencies[] {
     }
 
     // Kotlin DSL format with parentheses
-    const kotlinPattern = /(?:implementation|api|compile|runtimeOnly|compileOnly)\s*\(\s*['"]([\w.-]+):([\w.-]+):([\w.-]+)['"]\s*\)/g;
+    const kotlinPattern =
+      /(?:implementation|api|compile|runtimeOnly|compileOnly)\s*\(\s*['"]([\w.-]+):([\w.-]+):([\w.-]+)['"]\s*\)/g;
     while ((match = kotlinPattern.exec(content)) !== null) {
       const name = `${match[1]}:${match[2]}`;
       const version = match[3];
       prodDeps.set(name, version);
     }
 
-    const kotlinTestPattern = /(?:testImplementation|testCompile|testRuntimeOnly|androidTestImplementation)\s*\(\s*['"]([\w.-]+):([\w.-]+):([\w.-]+)['"]\s*\)/g;
+    const kotlinTestPattern =
+      /(?:testImplementation|testCompile|testRuntimeOnly|androidTestImplementation)\s*\(\s*['"]([\w.-]+):([\w.-]+):([\w.-]+)['"]\s*\)/g;
     while ((match = kotlinTestPattern.exec(content)) !== null) {
       const name = `${match[1]}:${match[2]}`;
       const version = match[3];

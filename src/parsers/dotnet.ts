@@ -33,19 +33,23 @@ export function parseCsproj(content: string): ParsedDependencies[] {
 
   try {
     let parsed: CsprojFile | PackagesConfig | null = null;
-    parseString(content, { 
-      async: false,
-      // Security: Disable external entities to prevent XXE attacks
-      explicitCharkey: false,
-      trim: true,
-      normalize: true,
-      // Prevent entity expansion attacks
-      strict: true,
-    }, (err: Error | null, result: CsprojFile | PackagesConfig) => {
-      if (!err) {
-        parsed = result;
+    parseString(
+      content,
+      {
+        async: false,
+        // Security: Disable external entities to prevent XXE attacks
+        explicitCharkey: false,
+        trim: true,
+        normalize: true,
+        // Prevent entity expansion attacks
+        strict: true,
+      },
+      (err: Error | null, result: CsprojFile | PackagesConfig) => {
+        if (!err) {
+          parsed = result;
+        }
       }
-    });
+    );
 
     if (!parsed) {
       return [];

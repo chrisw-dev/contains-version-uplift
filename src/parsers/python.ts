@@ -49,7 +49,7 @@ export function parseRequirementsTxt(content: string): ParsedDependencies[] {
 
     for (const line of lines) {
       const trimmed = line.trim();
-      
+
       // Skip empty lines, comments, and options
       if (!trimmed || trimmed.startsWith('#') || trimmed.startsWith('-')) {
         continue;

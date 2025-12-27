@@ -20,7 +20,7 @@ end
       const result = parseGemfile(content);
 
       expect(result).toHaveLength(2);
-      
+
       const prodDeps = result.find((r: ParsedDependencies) => r.dependencyType === 'production');
       expect(prodDeps?.dependencies.get('rails')).toBe('~> 7.0.0');
       expect(prodDeps?.dependencies.get('pg')).toBe('>= 1.1');

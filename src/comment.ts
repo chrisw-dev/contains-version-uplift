@@ -18,32 +18,32 @@ function sanitizeForMarkdown(input: string, maxLength: number): string {
   if (!input || typeof input !== 'string') {
     return '';
   }
-  
+
   // Truncate to max length
   let sanitized = input.slice(0, maxLength);
-  
+
   // Remove null bytes and control characters (except newline/tab)
   sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
-  
+
   // Escape characters that could be used for markdown injection
   // Escape backticks (prevents code block injection)
   sanitized = sanitized.replace(/`/g, '\\`');
-  
+
   // Escape pipe characters (prevents table manipulation)
   sanitized = sanitized.replace(/\|/g, '\\|');
-  
+
   // Escape square brackets and parentheses (prevents link injection)
   sanitized = sanitized.replace(/\[/g, '\\[');
   sanitized = sanitized.replace(/\]/g, '\\]');
-  
+
   // Remove HTML tags to prevent XSS (GitHub sanitizes, but defense in depth)
   sanitized = sanitized.replace(/<[^>]*>/g, '');
-  
+
   // Escape HTML entities
   sanitized = sanitized.replace(/&/g, '&amp;');
   sanitized = sanitized.replace(/</g, '&lt;');
   sanitized = sanitized.replace(/>/g, '&gt;');
-  
+
   return sanitized;
 }
 
@@ -79,10 +79,14 @@ export function formatChangesAsMarkdown(changes: DependencyChange[]): string {
     for (const dep of sorted) {
       const emoji = getChangeTypeEmoji(dep.changeType);
       const safeName = sanitizeForMarkdown(dep.name, MAX_NAME_LENGTH);
-      const oldVer = dep.oldVersion ? sanitizeForMarkdown(dep.oldVersion, MAX_VERSION_LENGTH) : '_new_';
-      const newVer = dep.newVersion ? sanitizeForMarkdown(dep.newVersion, MAX_VERSION_LENGTH) : '_removed_';
+      const oldVer = dep.oldVersion
+        ? sanitizeForMarkdown(dep.oldVersion, MAX_VERSION_LENGTH)
+        : '_new_';
+      const newVer = dep.newVersion
+        ? sanitizeForMarkdown(dep.newVersion, MAX_VERSION_LENGTH)
+        : '_removed_';
       const changeLabel = getChangeTypeLabel(dep.changeType);
-      
+
       md += `| \`${safeName}\` | ${oldVer} | ${newVer} | ${emoji} ${changeLabel} |\n`;
     }
     md += '\n';
@@ -92,7 +96,7 @@ export function formatChangesAsMarkdown(changes: DependencyChange[]): string {
   md += '### Summary\n\n';
   const summary = summarizeChanges(changes);
   const summaryParts: string[] = [];
-  
+
   if (summary.major > 0) summaryParts.push(`🔴 ${summary.major} major`);
   if (summary.minor > 0) summaryParts.push(`🟡 ${summary.minor} minor`);
   if (summary.patch > 0) summaryParts.push(`🟢 ${summary.patch} patch`);

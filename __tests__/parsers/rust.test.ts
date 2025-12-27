@@ -23,7 +23,7 @@ cc = "1.0"
       const result = parseCargoToml(content);
 
       expect(result).toHaveLength(3);
-      
+
       const prodDeps = result.find((r: ParsedDependencies) => r.dependencyType === 'production');
       expect(prodDeps?.dependencies.get('serde')).toBe('1.0');
       expect(prodDeps?.dependencies.get('tokio')).toBe('1.35');

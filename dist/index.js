@@ -33579,7 +33579,10 @@ function parsePackageLockJson(content) {
                 if (!path || path === '')
                     continue; // Skip root package
                 // Extract package name from path (e.g., "node_modules/@types/node" -> "@types/node")
-                const name = path.replace(/^node_modules\//, '').split('node_modules/').pop() || '';
+                const name = path
+                    .replace(/^node_modules\//, '')
+                    .split('node_modules/')
+                    .pop() || '';
                 if (!name || !info.version)
                     continue;
                 if (info.dev) {
@@ -47934,8 +47937,12 @@ function formatChangesAsMarkdown(changes) {
         for (const dep of sorted) {
             const emoji = getChangeTypeEmoji(dep.changeType);
             const safeName = sanitizeForMarkdown(dep.name, MAX_NAME_LENGTH);
-            const oldVer = dep.oldVersion ? sanitizeForMarkdown(dep.oldVersion, MAX_VERSION_LENGTH) : '_new_';
-            const newVer = dep.newVersion ? sanitizeForMarkdown(dep.newVersion, MAX_VERSION_LENGTH) : '_removed_';
+            const oldVer = dep.oldVersion
+                ? sanitizeForMarkdown(dep.oldVersion, MAX_VERSION_LENGTH)
+                : '_new_';
+            const newVer = dep.newVersion
+                ? sanitizeForMarkdown(dep.newVersion, MAX_VERSION_LENGTH)
+                : '_removed_';
             const changeLabel = getChangeTypeLabel(dep.changeType);
             md += `| \`${safeName}\` | ${oldVer} | ${newVer} | ${emoji} ${changeLabel} |\n`;
         }
@@ -48185,7 +48192,8 @@ async function getFileAtRef(filePath, ref) {
  */
 function isDependencyFile(filePath) {
     const fileName = filePath.split('/').pop() || '';
-    return DEPENDENCY_FILE_PATTERNS.some((pattern) => pattern.fileNames.includes(fileName) || pattern.extensions.some((ext) => fileName.endsWith(ext)));
+    return DEPENDENCY_FILE_PATTERNS.some((pattern) => pattern.fileNames.includes(fileName) ||
+        pattern.extensions.some((ext) => fileName.endsWith(ext)));
 }
 /**
  * Filter ecosystems based on user input

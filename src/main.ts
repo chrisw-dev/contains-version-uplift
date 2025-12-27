@@ -79,13 +79,13 @@ async function getFileAtRef(filePath: string, ref: string): Promise<string | nul
     if (exitCode !== 0) {
       return null;
     }
-    
+
     // Limit file size to prevent memory issues (10MB max)
     if (content.length > 10 * 1024 * 1024) {
       core.warning(`File too large, skipping: ${filePath}`);
       return null;
     }
-    
+
     return content;
   } catch {
     return null;
@@ -98,7 +98,9 @@ async function getFileAtRef(filePath: string, ref: string): Promise<string | nul
 function isDependencyFile(filePath: string): boolean {
   const fileName = filePath.split('/').pop() || '';
   return DEPENDENCY_FILE_PATTERNS.some(
-    (pattern) => pattern.fileNames.includes(fileName) || pattern.extensions.some((ext) => fileName.endsWith(ext))
+    (pattern) =>
+      pattern.fileNames.includes(fileName) ||
+      pattern.extensions.some((ext) => fileName.endsWith(ext))
   );
 }
 
@@ -173,7 +175,13 @@ async function analyzeFile(
     const oldTypeDeps = oldByType.get(depType) || new Map();
     const newTypeDeps = newByType.get(depType) || new Map();
 
-    const typeChanges = compareVersions(oldTypeDeps, newTypeDeps, parser.ecosystem, filePath, depType as any);
+    const typeChanges = compareVersions(
+      oldTypeDeps,
+      newTypeDeps,
+      parser.ecosystem,
+      filePath,
+      depType as any
+    );
     changes.push(...typeChanges);
   }
 
@@ -192,12 +200,12 @@ function validateEcosystem(ecosystem: string): ecosystem is Ecosystem {
  */
 function getInputs(): ActionInputs {
   const token = core.getInput('token') || process.env.GITHUB_TOKEN || '';
-  
+
   // Mask the token so it doesn't appear in logs
   if (token) {
     core.setSecret(token);
   }
-  
+
   const ecosystemsInput = core.getInput('ecosystems') || 'all';
   const commentOnPr = core.getBooleanInput('comment-on-pr');
   const includeDevDependencies = core.getBooleanInput('include-dev-dependencies');
@@ -208,9 +216,11 @@ function getInputs(): ActionInputs {
   } else {
     const requestedEcosystems = ecosystemsInput.split(',').map((e) => e.trim().toLowerCase());
     const validEcosystems = requestedEcosystems.filter(validateEcosystem);
-    
+
     if (validEcosystems.length === 0) {
-      core.warning(`No valid ecosystems specified. Valid options: ${VALID_ECOSYSTEMS.join(', ')}. Using 'all' instead.`);
+      core.warning(
+        `No valid ecosystems specified. Valid options: ${VALID_ECOSYSTEMS.join(', ')}. Using 'all' instead.`
+      );
       ecosystems = 'all';
     } else if (validEcosystems.length < requestedEcosystems.length) {
       const invalid = requestedEcosystems.filter((e) => !validateEcosystem(e));
@@ -307,8 +317,11 @@ export async function run(): Promise<void> {
       for (const [ecosystem, deps] of Object.entries(byEcosystem)) {
         core.info(`\n  ${ecosystem}:`);
         for (const dep of deps) {
-          const arrow = dep.changeType === 'added' ? '➕' : dep.changeType === 'removed' ? '➖' : '→';
-          core.info(`    ${dep.name}: ${dep.oldVersion || 'N/A'} ${arrow} ${dep.newVersion || 'N/A'}`);
+          const arrow =
+            dep.changeType === 'added' ? '➕' : dep.changeType === 'removed' ? '➖' : '→';
+          core.info(
+            `    ${dep.name}: ${dep.oldVersion || 'N/A'} ${arrow} ${dep.newVersion || 'N/A'}`
+          );
         }
       }
     }

@@ -26,9 +26,11 @@ describe('Java Parsers', () => {
       const result = parsePomXml(content);
 
       expect(result).toHaveLength(2);
-      
+
       const prodDeps = result.find((r: ParsedDependencies) => r.dependencyType === 'production');
-      expect(prodDeps?.dependencies.get('org.springframework.boot:spring-boot-starter-web')).toBe('3.2.0');
+      expect(prodDeps?.dependencies.get('org.springframework.boot:spring-boot-starter-web')).toBe(
+        '3.2.0'
+      );
 
       const testDeps = result.find((r: ParsedDependencies) => r.dependencyType === 'test');
       expect(testDeps?.dependencies.get('junit:junit')).toBe('4.13.2');
@@ -71,7 +73,9 @@ describe('Java Parsers', () => {
       const result = parsePomXml(content);
 
       expect(result).toHaveLength(1);
-      expect(result[0].dependencies.get('org.springframework.boot:spring-boot-dependencies')).toBe('3.2.0');
+      expect(result[0].dependencies.get('org.springframework.boot:spring-boot-dependencies')).toBe(
+        '3.2.0'
+      );
     });
   });
 
@@ -91,9 +95,11 @@ dependencies {
       const result = parseBuildGradle(content);
 
       expect(result).toHaveLength(2);
-      
+
       const prodDeps = result.find((r: ParsedDependencies) => r.dependencyType === 'production');
-      expect(prodDeps?.dependencies.get('org.springframework.boot:spring-boot-starter-web')).toBe('3.2.0');
+      expect(prodDeps?.dependencies.get('org.springframework.boot:spring-boot-starter-web')).toBe(
+        '3.2.0'
+      );
 
       const testDeps = result.find((r: ParsedDependencies) => r.dependencyType === 'test');
       expect(testDeps?.dependencies.get('junit:junit')).toBe('4.13.2');
@@ -114,9 +120,11 @@ dependencies {
       const result = parseBuildGradle(content);
 
       expect(result).toHaveLength(2);
-      
+
       const prodDeps = result.find((r: ParsedDependencies) => r.dependencyType === 'production');
-      expect(prodDeps?.dependencies.get('org.springframework.boot:spring-boot-starter-web')).toBe('3.2.0');
+      expect(prodDeps?.dependencies.get('org.springframework.boot:spring-boot-starter-web')).toBe(
+        '3.2.0'
+      );
     });
   });
 });

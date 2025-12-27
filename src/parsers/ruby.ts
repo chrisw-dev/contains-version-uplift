@@ -36,7 +36,7 @@ export function parseGemfile(content: string): ParsedDependencies[] {
       if (gemMatch) {
         const name = gemMatch[1];
         const version = gemMatch[2] || '*';
-        
+
         if (inDevGroup) {
           devDeps.set(name, version);
         } else {

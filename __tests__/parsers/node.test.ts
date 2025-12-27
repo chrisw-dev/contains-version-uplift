@@ -1,4 +1,9 @@
-import { parsePackageJson, parsePackageLockJson, parseYarnLock, parsePnpmLock } from '../../src/parsers/node';
+import {
+  parsePackageJson,
+  parsePackageLockJson,
+  parseYarnLock,
+  parsePnpmLock,
+} from '../../src/parsers/node';
 import { ParsedDependencies } from '../../src/types';
 
 describe('Node.js Parsers', () => {
@@ -18,7 +23,7 @@ describe('Node.js Parsers', () => {
       const result = parsePackageJson(content);
 
       expect(result).toHaveLength(2);
-      
+
       const prodDeps = result.find((r: ParsedDependencies) => r.dependencyType === 'production');
       expect(prodDeps?.dependencies.get('lodash')).toBe('^4.17.21');
       expect(prodDeps?.dependencies.get('express')).toBe('~4.18.0');
@@ -75,7 +80,7 @@ describe('Node.js Parsers', () => {
       const result = parsePackageLockJson(content);
 
       expect(result).toHaveLength(2);
-      
+
       const prodDeps = result.find((r: ParsedDependencies) => r.dependencyType === 'production');
       expect(prodDeps?.dependencies.get('lodash')).toBe('4.17.21');
 
@@ -135,7 +140,7 @@ importers:
       const result = parsePnpmLock(content);
 
       expect(result).toHaveLength(2);
-      
+
       const prodDeps = result.find((r: ParsedDependencies) => r.dependencyType === 'production');
       expect(prodDeps?.dependencies.get('lodash')).toBe('4.17.21');
 
