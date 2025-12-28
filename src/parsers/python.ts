@@ -13,10 +13,40 @@ const MAX_DEPENDENCIES = 5000;
 
 /**
  * Check if content exceeds safe nesting depth
+ * Note: This is a heuristic check for TOML - brackets in strings may cause false positives,
+ * but the actual toml.parse will still catch malformed input
  */
 function checkNestingDepth(content: string, maxDepth: number): boolean {
   let depth = 0;
+  let inString = false;
+  let stringChar = '';
+  let escape = false;
+
   for (const char of content) {
+    if (escape) {
+      escape = false;
+      continue;
+    }
+
+    if (char === '\\' && inString) {
+      escape = true;
+      continue;
+    }
+
+    if ((char === '"' || char === "'") && !inString) {
+      inString = true;
+      stringChar = char;
+      continue;
+    }
+
+    if (char === stringChar && inString) {
+      inString = false;
+      stringChar = '';
+      continue;
+    }
+
+    if (inString) continue;
+
     if (char === '{' || char === '[') {
       depth++;
       if (depth > maxDepth) {
@@ -24,6 +54,10 @@ function checkNestingDepth(content: string, maxDepth: number): boolean {
       }
     } else if (char === '}' || char === ']') {
       depth--;
+      // Negative depth indicates malformed input
+      if (depth < 0) {
+        return false;
+      }
     }
   }
   return true;
@@ -157,9 +191,11 @@ export function parsePyprojectToml(content: string): ParsedDependencies[] {
       if (poetry.dependencies) {
         const deps = new Map<string, string>();
         for (const [name, value] of Object.entries(poetry.dependencies)) {
+          if (totalDeps >= MAX_DEPENDENCIES) break;
           if (name.toLowerCase() === 'python') continue; // Skip python version constraint
           const version = typeof value === 'string' ? value : value.version || '*';
           deps.set(name.toLowerCase(), version);
+          totalDeps++;
         }
         if (deps.size > 0) {
           results.push({ dependencies: deps, dependencyType: 'production' });
@@ -170,8 +206,10 @@ export function parsePyprojectToml(content: string): ParsedDependencies[] {
       if (poetry['dev-dependencies']) {
         const deps = new Map<string, string>();
         for (const [name, value] of Object.entries(poetry['dev-dependencies'])) {
+          if (totalDeps >= MAX_DEPENDENCIES) break;
           const version = typeof value === 'string' ? value : value.version || '*';
           deps.set(name.toLowerCase(), version);
+          totalDeps++;
         }
         if (deps.size > 0) {
           results.push({ dependencies: deps, dependencyType: 'development' });
@@ -181,11 +219,14 @@ export function parsePyprojectToml(content: string): ParsedDependencies[] {
       // Poetry groups (new format)
       if (poetry.group) {
         for (const [groupName, group] of Object.entries(poetry.group)) {
+          if (totalDeps >= MAX_DEPENDENCIES) break;
           if (group.dependencies) {
             const deps = new Map<string, string>();
             for (const [name, value] of Object.entries(group.dependencies)) {
+              if (totalDeps >= MAX_DEPENDENCIES) break;
               const version = typeof value === 'string' ? value : value.version || '*';
               deps.set(name.toLowerCase(), version);
+              totalDeps++;
             }
             if (deps.size > 0) {
               const isDevGroup = ['dev', 'test', 'lint', 'typing'].includes(groupName);
@@ -277,6 +318,106 @@ export function parsePoetryLock(content: string): ParsedDependencies[] {
           devDeps.set(pkg.name.toLowerCase(), pkg.version);
         } else {
           prodDeps.set(pkg.name.toLowerCase(), pkg.version);
+        }
+      }
+    }
+
+    const results: ParsedDependencies[] = [];
+    if (prodDeps.size > 0) {
+      results.push({ dependencies: prodDeps, dependencyType: 'production' });
+    }
+    if (devDeps.size > 0) {
+      results.push({ dependencies: devDeps, dependencyType: 'development' });
+    }
+
+    return results;
+  } catch {
+    return [];
+  }
+}
+
+interface PipfileLockJson {
+  default?: Record<string, { version?: string }>;
+  develop?: Record<string, { version?: string }>;
+}
+
+/**
+ * Check if JSON content exceeds safe nesting depth
+ */
+function checkJsonDepth(content: string, maxDepth: number): boolean {
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+
+  for (const char of content) {
+    if (escape) {
+      escape = false;
+      continue;
+    }
+
+    if (char === '\\' && inString) {
+      escape = true;
+      continue;
+    }
+
+    if (char === '"') {
+      inString = !inString;
+      continue;
+    }
+
+    if (inString) continue;
+
+    if (char === '{' || char === '[') {
+      depth++;
+      if (depth > maxDepth) {
+        return false;
+      }
+    } else if (char === '}' || char === ']') {
+      depth--;
+      if (depth < 0) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+/**
+ * Parse Pipfile.lock for dependencies (JSON format, different from poetry.lock)
+ */
+export function parsePipfileLock(content: string): ParsedDependencies[] {
+  try {
+    // Check for excessive nesting depth before parsing
+    if (!checkJsonDepth(content, MAX_NESTING_DEPTH)) {
+      return [];
+    }
+
+    const lock: PipfileLockJson = JSON.parse(content);
+    const prodDeps = new Map<string, string>();
+    const devDeps = new Map<string, string>();
+    let totalDeps = 0;
+
+    // Production dependencies in "default" section
+    if (lock.default) {
+      for (const [name, info] of Object.entries(lock.default)) {
+        if (totalDeps >= MAX_DEPENDENCIES) break;
+        if (info.version) {
+          // Version format is "==1.0.0", strip the operator
+          const version = info.version.replace(/^[=<>!~]+/, '');
+          prodDeps.set(name.toLowerCase(), version);
+          totalDeps++;
+        }
+      }
+    }
+
+    // Development dependencies in "develop" section
+    if (lock.develop) {
+      for (const [name, info] of Object.entries(lock.develop)) {
+        if (totalDeps >= MAX_DEPENDENCIES) break;
+        if (info.version) {
+          const version = info.version.replace(/^[=<>!~]+/, '');
+          devDeps.set(name.toLowerCase(), version);
+          totalDeps++;
         }
       }
     }

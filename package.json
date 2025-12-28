@@ -24,7 +24,7 @@
     "upgrade",
     "check"
   ],
-  "author": "",
+  "author": "TODO: Set before publishing",
   "license": "MIT",
   "dependencies": {
     "@actions/core": "^1.10.1",

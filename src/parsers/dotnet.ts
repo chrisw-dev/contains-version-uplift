@@ -37,12 +37,16 @@ export function parseCsproj(content: string): ParsedDependencies[] {
       content,
       {
         async: false,
+        // Security: Strict mode for proper XML parsing
+        strict: true,
         // Security: Disable external entities to prevent XXE attacks
         explicitCharkey: false,
         trim: true,
         normalize: true,
-        // Prevent entity expansion attacks
-        strict: true,
+        // Disable namespace processing (not needed, reduces attack surface)
+        xmlns: false,
+        // Use explicit arrays for consistent structure
+        explicitArray: true,
       },
       (err: Error | null, result: CsprojFile | PackagesConfig) => {
         if (!err) {

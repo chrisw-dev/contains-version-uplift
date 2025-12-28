@@ -58,8 +58,8 @@ async function getFileAtRef(filePath: string, ref: string): Promise<string | nul
     return null;
   }
 
-  // Validate ref format (should be a valid git SHA)
-  if (!/^[a-f0-9]{40}$/i.test(ref)) {
+  // Validate ref format (should be a valid git SHA - full or abbreviated)
+  if (!/^[a-f0-9]{7,40}$/i.test(ref)) {
     core.warning(`Invalid git ref format: ${ref}`);
     return null;
   }
@@ -81,7 +81,8 @@ async function getFileAtRef(filePath: string, ref: string): Promise<string | nul
     }
 
     // Limit file size to prevent memory issues (10MB max)
-    if (content.length > 10 * 1024 * 1024) {
+    // Use Buffer.byteLength for accurate byte size (handles multi-byte UTF-8 chars)
+    if (Buffer.byteLength(content, 'utf8') > 10 * 1024 * 1024) {
       core.warning(`File too large, skipping: ${filePath}`);
       return null;
     }

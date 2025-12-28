@@ -1,6 +1,6 @@
 name: 'Dependency Version Uplift Check'
 description: 'Detects and reports dependency version changes in Pull Requests across multiple ecosystems'
-author: 'Your Name'
+author: 'TODO: Set before publishing'
 
 branding:
   icon: 'package'

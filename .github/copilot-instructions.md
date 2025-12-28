@@ -129,7 +129,7 @@ When modifying this codebase, maintain these security practices:
 ### Input Validation
 - Validate ecosystem input against `VALID_ECOSYSTEMS` whitelist
 - Validate file paths for path traversal (`..`, absolute paths, null bytes)
-- Validate git refs match SHA-1 pattern
+- Validate git refs match SHA-1 pattern (full 40-character or abbreviated 7+ character format)
 
 ### Parser Security
 - Use safe YAML loading with `JSON_SCHEMA` (no custom tags)

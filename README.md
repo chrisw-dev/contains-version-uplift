@@ -44,8 +44,7 @@ jobs:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 #v6.0.1
         with:
           fetch-depth: 0  # Required for git diff
-
-      - uses: your-username/dependency-version-uplift-check@v1
+      - uses: chrisw-dev/contains-version-uplift@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 ```
@@ -53,7 +52,7 @@ jobs:
 ### With Custom Configuration
 
 ```yaml
-- uses: your-username/dependency-version-uplift-check@v1
+- uses: chrisw-dev/contains-version-uplift@v1
   with:
     token: ${{ secrets.GITHUB_TOKEN }}
     ecosystems: 'node,python'  # Only check specific ecosystems
@@ -64,7 +63,7 @@ jobs:
 ### Using Outputs
 
 ```yaml
-- uses: your-username/dependency-version-uplift-check@v1
+- uses: chrisw-dev/contains-version-uplift@v1
   id: deps-check
   with:
     token: ${{ secrets.GITHUB_TOKEN }}

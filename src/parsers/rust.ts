@@ -8,10 +8,40 @@ const MAX_NESTING_DEPTH = 20;
 
 /**
  * Check if content exceeds safe nesting depth
+ * Note: This is a heuristic check for TOML - brackets in strings may cause false positives,
+ * but the actual toml.parse will still catch malformed input
  */
 function checkNestingDepth(content: string, maxDepth: number): boolean {
   let depth = 0;
+  let inString = false;
+  let stringChar = '';
+  let escape = false;
+
   for (const char of content) {
+    if (escape) {
+      escape = false;
+      continue;
+    }
+
+    if (char === '\\' && inString) {
+      escape = true;
+      continue;
+    }
+
+    if ((char === '"' || char === "'") && !inString) {
+      inString = true;
+      stringChar = char;
+      continue;
+    }
+
+    if (char === stringChar && inString) {
+      inString = false;
+      stringChar = '';
+      continue;
+    }
+
+    if (inString) continue;
+
     if (char === '{' || char === '[') {
       depth++;
       if (depth > maxDepth) {
@@ -19,6 +49,10 @@ function checkNestingDepth(content: string, maxDepth: number): boolean {
       }
     } else if (char === '}' || char === ']') {
       depth--;
+      // Negative depth indicates malformed input
+      if (depth < 0) {
+        return false;
+      }
     }
   }
   return true;

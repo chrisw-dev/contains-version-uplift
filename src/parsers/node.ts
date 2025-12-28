@@ -1,5 +1,6 @@
 import { ParsedDependencies } from '../types';
 import * as yaml from 'js-yaml';
+import * as core from '@actions/core';
 
 /**
  * Safe YAML load options to prevent code execution and limit parsing
@@ -26,19 +27,43 @@ const MAX_JSON_DEPTH = 20;
 /**
  * Check if JSON content exceeds safe nesting depth
  * This prevents stack overflow from deeply nested malicious input
+ * Note: This is a heuristic check - brackets in strings may cause false positives,
+ * but the actual JSON.parse will still catch malformed input
  */
 function checkJsonDepth(content: string, maxDepth: number): boolean {
   let depth = 0;
-  let maxFound = 0;
+  let inString = false;
+  let escape = false;
+
   for (const char of content) {
+    if (escape) {
+      escape = false;
+      continue;
+    }
+
+    if (char === '\\' && inString) {
+      escape = true;
+      continue;
+    }
+
+    if (char === '"') {
+      inString = !inString;
+      continue;
+    }
+
+    if (inString) continue;
+
     if (char === '{' || char === '[') {
       depth++;
-      maxFound = Math.max(maxFound, depth);
       if (depth > maxDepth) {
         return false;
       }
     } else if (char === '}' || char === ']') {
       depth--;
+      // Negative depth indicates malformed input
+      if (depth < 0) {
+        return false;
+      }
     }
   }
   return true;
@@ -85,7 +110,10 @@ export function parsePackageJson(content: string): ParsedDependencies[] {
     }
 
     return results;
-  } catch {
+  } catch (error) {
+    core.debug(
+      `Failed to parse package.json: ${error instanceof Error ? error.message : String(error)}`
+    );
     return [];
   }
 }
@@ -112,14 +140,18 @@ export function parsePackageLockJson(content: string): ParsedDependencies[] {
     // V3 format (lockfileVersion 3)
     if (lock.packages) {
       for (const [path, info] of Object.entries(lock.packages)) {
-        if (!path || path === '') continue; // Skip root package
+        // Skip root package (empty path) and node_modules root
+        if (path === '' || path === 'node_modules') continue;
+
+        // Must be a node_modules path to be a dependency
+        if (!path.startsWith('node_modules/')) continue;
 
         // Extract package name from path (e.g., "node_modules/@types/node" -> "@types/node")
-        const name =
-          path
-            .replace(/^node_modules\//, '')
-            .split('node_modules/')
-            .pop() || '';
+        const name = path
+          .replace(/^node_modules\//, '')
+          .split('node_modules/')
+          .pop();
+
         if (!name || !info.version) continue;
 
         if (info.dev) {
@@ -151,7 +183,10 @@ export function parsePackageLockJson(content: string): ParsedDependencies[] {
     }
 
     return results;
-  } catch {
+  } catch (error) {
+    core.debug(
+      `Failed to parse package-lock.json: ${error instanceof Error ? error.message : String(error)}`
+    );
     return [];
   }
 }
@@ -211,7 +246,10 @@ export function parseYarnLock(content: string): ParsedDependencies[] {
 
     // Yarn lock doesn't distinguish dev deps, so mark all as production
     return [{ dependencies: deps, dependencyType: 'production' }];
-  } catch {
+  } catch (error) {
+    core.debug(
+      `Failed to parse yarn.lock: ${error instanceof Error ? error.message : String(error)}`
+    );
     return [];
   }
 }
@@ -268,6 +306,9 @@ export function parsePnpmLock(content: string): ParsedDependencies[] {
           const name = match[1].startsWith('/') ? match[1].slice(1) : match[1];
           const version = match[2];
 
+          // Skip linked packages (local workspace packages)
+          if (version.startsWith('link:')) continue;
+
           if (info.dev) {
             devDeps.set(name, version);
           } else {
@@ -286,7 +327,10 @@ export function parsePnpmLock(content: string): ParsedDependencies[] {
     }
 
     return results;
-  } catch {
+  } catch (error) {
+    core.debug(
+      `Failed to parse pnpm-lock.yaml: ${error instanceof Error ? error.message : String(error)}`
+    );
     return [];
   }
 }

@@ -1,6 +1,12 @@
 import { DependencyFile, Ecosystem, ParsedDependencies } from '../types';
 import { parsePackageJson, parsePackageLockJson, parseYarnLock, parsePnpmLock } from './node';
-import { parseRequirementsTxt, parsePyprojectToml, parsePipfile, parsePoetryLock } from './python';
+import {
+  parseRequirementsTxt,
+  parsePyprojectToml,
+  parsePipfile,
+  parsePoetryLock,
+  parsePipfileLock,
+} from './python';
 import { parseGoMod, parseGoSum } from './go';
 import { parseGemfile, parseGemfileLock } from './ruby';
 import { parsePomXml, parseBuildGradle } from './java';
@@ -64,9 +70,15 @@ export const DEPENDENCY_FILE_PATTERNS: DependencyFilePattern[] = [
   },
   {
     ecosystem: 'python',
-    fileNames: ['poetry.lock', 'Pipfile.lock'],
+    fileNames: ['poetry.lock'],
     extensions: [],
     parser: parsePoetryLock,
+  },
+  {
+    ecosystem: 'python',
+    fileNames: ['Pipfile.lock'],
+    extensions: [],
+    parser: parsePipfileLock,
   },
   // Go
   {

@@ -25,7 +25,15 @@ function sanitizeForMarkdown(input: string, maxLength: number): string {
   // Remove null bytes and control characters (except newline/tab)
   sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
 
-  // Escape characters that could be used for markdown injection
+  // Step 1: Escape HTML entities first (before removing tags)
+  sanitized = sanitized.replace(/&/g, '&amp;');
+  sanitized = sanitized.replace(/</g, '&lt;');
+  sanitized = sanitized.replace(/>/g, '&gt;');
+
+  // Step 2: Remove any remaining HTML-like patterns (defense in depth)
+  sanitized = sanitized.replace(/&lt;[^&]*&gt;/g, '');
+
+  // Step 3: Escape characters that could be used for markdown injection
   // Escape backticks (prevents code block injection)
   sanitized = sanitized.replace(/`/g, '\\`');
 
@@ -35,14 +43,6 @@ function sanitizeForMarkdown(input: string, maxLength: number): string {
   // Escape square brackets and parentheses (prevents link injection)
   sanitized = sanitized.replace(/\[/g, '\\[');
   sanitized = sanitized.replace(/\]/g, '\\]');
-
-  // Remove HTML tags to prevent XSS (GitHub sanitizes, but defense in depth)
-  sanitized = sanitized.replace(/<[^>]*>/g, '');
-
-  // Escape HTML entities
-  sanitized = sanitized.replace(/&/g, '&amp;');
-  sanitized = sanitized.replace(/</g, '&lt;');
-  sanitized = sanitized.replace(/>/g, '&gt;');
 
   return sanitized;
 }

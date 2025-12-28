@@ -44,12 +44,16 @@ export function parsePomXml(content: string): ParsedDependencies[] {
       content,
       {
         async: false,
+        // Security: Strict mode for proper XML parsing
+        strict: true,
         // Security: Disable external entities to prevent XXE attacks
         explicitCharkey: false,
         trim: true,
         normalize: true,
-        // Prevent entity expansion attacks
-        strict: true,
+        // Disable namespace processing (not needed, reduces attack surface)
+        xmlns: false,
+        // Use explicit arrays for consistent structure
+        explicitArray: true,
       },
       (err: Error | null, result: PomXml) => {
         if (!err) {
@@ -137,7 +141,7 @@ export function parseBuildGradle(content: string): ParsedDependencies[] {
     // Production dependencies
     let match;
     const prodPattern =
-      /(?:implementation|api|compile|runtimeOnly|compileOnly)\s*(?:\()?['"]([\w.-]+):([\w.-]+):([\w.-]+)['"]/g;
+      /(?:implementation|api|compile|runtimeOnly|compileOnly)\s*(?:\()?['"]([\w._-]+):([\w._-]+):([\w._-]+)['"]\)?/g;
     while ((match = prodPattern.exec(content)) !== null) {
       const name = `${match[1]}:${match[2]}`;
       const version = match[3];
@@ -146,7 +150,7 @@ export function parseBuildGradle(content: string): ParsedDependencies[] {
 
     // Test dependencies
     const testPattern =
-      /(?:testImplementation|testCompile|testRuntimeOnly|androidTestImplementation)\s*(?:\()?['"]([\w.-]+):([\w.-]+):([\w.-]+)['"]/g;
+      /(?:testImplementation|testCompile|testRuntimeOnly|androidTestImplementation)\s*(?:\()?['"]([\w._-]+):([\w._-]+):([\w._-]+)['"]\)?/g;
     while ((match = testPattern.exec(content)) !== null) {
       const name = `${match[1]}:${match[2]}`;
       const version = match[3];
@@ -155,7 +159,7 @@ export function parseBuildGradle(content: string): ParsedDependencies[] {
 
     // Kotlin DSL format with parentheses
     const kotlinPattern =
-      /(?:implementation|api|compile|runtimeOnly|compileOnly)\s*\(\s*['"]([\w.-]+):([\w.-]+):([\w.-]+)['"]\s*\)/g;
+      /(?:implementation|api|compile|runtimeOnly|compileOnly)\s*\(\s*['"]([\w._-]+):([\w._-]+):([\w._-]+)['"]\s*\)/g;
     while ((match = kotlinPattern.exec(content)) !== null) {
       const name = `${match[1]}:${match[2]}`;
       const version = match[3];
@@ -163,7 +167,7 @@ export function parseBuildGradle(content: string): ParsedDependencies[] {
     }
 
     const kotlinTestPattern =
-      /(?:testImplementation|testCompile|testRuntimeOnly|androidTestImplementation)\s*\(\s*['"]([\w.-]+):([\w.-]+):([\w.-]+)['"]\s*\)/g;
+      /(?:testImplementation|testCompile|testRuntimeOnly|androidTestImplementation)\s*\(\s*['"]([\w._-]+):([\w._-]+):([\w._-]+)['"]\s*\)/g;
     while ((match = kotlinTestPattern.exec(content)) !== null) {
       const name = `${match[1]}:${match[2]}`;
       const version = match[3];

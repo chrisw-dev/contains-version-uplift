@@ -33508,10 +33508,28 @@ const MAX_JSON_DEPTH = 20;
 /**
  * Check if JSON content exceeds safe nesting depth
  * This prevents stack overflow from deeply nested malicious input
+ * Note: This is a heuristic check - brackets in strings may cause false positives,
+ * but the actual JSON.parse will still catch malformed input
  */
-function checkJsonDepth(content, maxDepth) {
+function checkJsonDepth$1(content, maxDepth) {
     let depth = 0;
+    let inString = false;
+    let escape = false;
     for (const char of content) {
+        if (escape) {
+            escape = false;
+            continue;
+        }
+        if (char === '\\' && inString) {
+            escape = true;
+            continue;
+        }
+        if (char === '"') {
+            inString = !inString;
+            continue;
+        }
+        if (inString)
+            continue;
         if (char === '{' || char === '[') {
             depth++;
             if (depth > maxDepth) {
@@ -33520,6 +33538,10 @@ function checkJsonDepth(content, maxDepth) {
         }
         else if (char === '}' || char === ']') {
             depth--;
+            // Negative depth indicates malformed input
+            if (depth < 0) {
+                return false;
+            }
         }
     }
     return true;
@@ -33530,7 +33552,7 @@ function checkJsonDepth(content, maxDepth) {
 function parsePackageJson(content) {
     try {
         // Check for excessive nesting depth before parsing
-        if (!checkJsonDepth(content, MAX_JSON_DEPTH)) {
+        if (!checkJsonDepth$1(content, MAX_JSON_DEPTH)) {
             return [];
         }
         const pkg = JSON.parse(content);
@@ -33561,7 +33583,8 @@ function parsePackageJson(content) {
         }
         return results;
     }
-    catch {
+    catch (error) {
+        coreExports.debug(`Failed to parse package.json: ${error instanceof Error ? error.message : String(error)}`);
         return [];
     }
 }
@@ -33576,13 +33599,17 @@ function parsePackageLockJson(content) {
         // V3 format (lockfileVersion 3)
         if (lock.packages) {
             for (const [path, info] of Object.entries(lock.packages)) {
-                if (!path || path === '')
-                    continue; // Skip root package
+                // Skip root package (empty path) and node_modules root
+                if (path === '' || path === 'node_modules')
+                    continue;
+                // Must be a node_modules path to be a dependency
+                if (!path.startsWith('node_modules/'))
+                    continue;
                 // Extract package name from path (e.g., "node_modules/@types/node" -> "@types/node")
                 const name = path
                     .replace(/^node_modules\//, '')
                     .split('node_modules/')
-                    .pop() || '';
+                    .pop();
                 if (!name || !info.version)
                     continue;
                 if (info.dev) {
@@ -33615,7 +33642,8 @@ function parsePackageLockJson(content) {
         }
         return results;
     }
-    catch {
+    catch (error) {
+        coreExports.debug(`Failed to parse package-lock.json: ${error instanceof Error ? error.message : String(error)}`);
         return [];
     }
 }
@@ -33669,7 +33697,8 @@ function parseYarnLock(content) {
         // Yarn lock doesn't distinguish dev deps, so mark all as production
         return [{ dependencies: deps, dependencyType: 'production' }];
     }
-    catch {
+    catch (error) {
+        coreExports.debug(`Failed to parse yarn.lock: ${error instanceof Error ? error.message : String(error)}`);
         return [];
     }
 }
@@ -33711,6 +33740,9 @@ function parsePnpmLock(content) {
                 if (match && match[1] && match[2]) {
                     const name = match[1].startsWith('/') ? match[1].slice(1) : match[1];
                     const version = match[2];
+                    // Skip linked packages (local workspace packages)
+                    if (version.startsWith('link:'))
+                        continue;
                     if (info.dev) {
                         devDeps.set(name, version);
                     }
@@ -33729,7 +33761,8 @@ function parsePnpmLock(content) {
         }
         return results;
     }
-    catch {
+    catch (error) {
+        coreExports.debug(`Failed to parse pnpm-lock.yaml: ${error instanceof Error ? error.message : String(error)}`);
         return [];
     }
 }
@@ -37769,10 +37802,35 @@ const MAX_NESTING_DEPTH$1 = 20;
 const MAX_DEPENDENCIES = 5000;
 /**
  * Check if content exceeds safe nesting depth
+ * Note: This is a heuristic check for TOML - brackets in strings may cause false positives,
+ * but the actual toml.parse will still catch malformed input
  */
 function checkNestingDepth$1(content, maxDepth) {
     let depth = 0;
+    let inString = false;
+    let stringChar = '';
+    let escape = false;
     for (const char of content) {
+        if (escape) {
+            escape = false;
+            continue;
+        }
+        if (char === '\\' && inString) {
+            escape = true;
+            continue;
+        }
+        if ((char === '"' || char === "'") && !inString) {
+            inString = true;
+            stringChar = char;
+            continue;
+        }
+        if (char === stringChar && inString) {
+            inString = false;
+            stringChar = '';
+            continue;
+        }
+        if (inString)
+            continue;
         if (char === '{' || char === '[') {
             depth++;
             if (depth > maxDepth) {
@@ -37781,6 +37839,10 @@ function checkNestingDepth$1(content, maxDepth) {
         }
         else if (char === '}' || char === ']') {
             depth--;
+            // Negative depth indicates malformed input
+            if (depth < 0) {
+                return false;
+            }
         }
     }
     return true;
@@ -37891,10 +37953,13 @@ function parsePyprojectToml(content) {
             if (poetry.dependencies) {
                 const deps = new Map();
                 for (const [name, value] of Object.entries(poetry.dependencies)) {
+                    if (totalDeps >= MAX_DEPENDENCIES)
+                        break;
                     if (name.toLowerCase() === 'python')
                         continue; // Skip python version constraint
                     const version = typeof value === 'string' ? value : value.version || '*';
                     deps.set(name.toLowerCase(), version);
+                    totalDeps++;
                 }
                 if (deps.size > 0) {
                     results.push({ dependencies: deps, dependencyType: 'production' });
@@ -37904,8 +37969,11 @@ function parsePyprojectToml(content) {
             if (poetry['dev-dependencies']) {
                 const deps = new Map();
                 for (const [name, value] of Object.entries(poetry['dev-dependencies'])) {
+                    if (totalDeps >= MAX_DEPENDENCIES)
+                        break;
                     const version = typeof value === 'string' ? value : value.version || '*';
                     deps.set(name.toLowerCase(), version);
+                    totalDeps++;
                 }
                 if (deps.size > 0) {
                     results.push({ dependencies: deps, dependencyType: 'development' });
@@ -37914,11 +37982,16 @@ function parsePyprojectToml(content) {
             // Poetry groups (new format)
             if (poetry.group) {
                 for (const [groupName, group] of Object.entries(poetry.group)) {
+                    if (totalDeps >= MAX_DEPENDENCIES)
+                        break;
                     if (group.dependencies) {
                         const deps = new Map();
                         for (const [name, value] of Object.entries(group.dependencies)) {
+                            if (totalDeps >= MAX_DEPENDENCIES)
+                                break;
                             const version = typeof value === 'string' ? value : value.version || '*';
                             deps.set(name.toLowerCase(), version);
+                            totalDeps++;
                         }
                         if (deps.size > 0) {
                             const isDevGroup = ['dev', 'test', 'lint', 'typing'].includes(groupName);
@@ -37991,6 +38064,94 @@ function parsePoetryLock(content) {
                 }
                 else {
                     prodDeps.set(pkg.name.toLowerCase(), pkg.version);
+                }
+            }
+        }
+        const results = [];
+        if (prodDeps.size > 0) {
+            results.push({ dependencies: prodDeps, dependencyType: 'production' });
+        }
+        if (devDeps.size > 0) {
+            results.push({ dependencies: devDeps, dependencyType: 'development' });
+        }
+        return results;
+    }
+    catch {
+        return [];
+    }
+}
+/**
+ * Check if JSON content exceeds safe nesting depth
+ */
+function checkJsonDepth(content, maxDepth) {
+    let depth = 0;
+    let inString = false;
+    let escape = false;
+    for (const char of content) {
+        if (escape) {
+            escape = false;
+            continue;
+        }
+        if (char === '\\' && inString) {
+            escape = true;
+            continue;
+        }
+        if (char === '"') {
+            inString = !inString;
+            continue;
+        }
+        if (inString)
+            continue;
+        if (char === '{' || char === '[') {
+            depth++;
+            if (depth > maxDepth) {
+                return false;
+            }
+        }
+        else if (char === '}' || char === ']') {
+            depth--;
+            if (depth < 0) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+/**
+ * Parse Pipfile.lock for dependencies (JSON format, different from poetry.lock)
+ */
+function parsePipfileLock(content) {
+    try {
+        // Check for excessive nesting depth before parsing
+        if (!checkJsonDepth(content, MAX_NESTING_DEPTH$1)) {
+            return [];
+        }
+        const lock = JSON.parse(content);
+        const prodDeps = new Map();
+        const devDeps = new Map();
+        let totalDeps = 0;
+        // Production dependencies in "default" section
+        if (lock.default) {
+            for (const [name, info] of Object.entries(lock.default)) {
+                if (totalDeps >= MAX_DEPENDENCIES)
+                    break;
+                if (info.version) {
+                    // Version format is "==1.0.0", strip the operator
+                    const version = info.version.replace(/^[=<>!~]+/, '');
+                    prodDeps.set(name.toLowerCase(), version);
+                    totalDeps++;
+                }
+            }
+        }
+        // Development dependencies in "develop" section
+        if (lock.develop) {
+            for (const [name, info] of Object.entries(lock.develop)) {
+                if (totalDeps >= MAX_DEPENDENCIES)
+                    break;
+                if (info.version) {
+                    const version = info.version.replace(/^[=<>!~]+/, '');
+                    devDeps.set(name.toLowerCase(), version);
+                    totalDeps++;
                 }
             }
         }
@@ -45009,12 +45170,16 @@ function parsePomXml(content) {
         let parsed = null;
         parseString(content, {
             async: false,
+            // Security: Strict mode for proper XML parsing
+            strict: true,
             // Security: Disable external entities to prevent XXE attacks
             explicitCharkey: false,
             trim: true,
             normalize: true,
-            // Prevent entity expansion attacks
-            strict: true,
+            // Disable namespace processing (not needed, reduces attack surface)
+            xmlns: false,
+            // Use explicit arrays for consistent structure
+            explicitArray: true,
         }, (err, result) => {
             if (!err) {
                 parsed = result;
@@ -45091,27 +45256,27 @@ function parseBuildGradle(content) {
         // etc.
         // Production dependencies
         let match;
-        const prodPattern = /(?:implementation|api|compile|runtimeOnly|compileOnly)\s*(?:\()?['"]([\w.-]+):([\w.-]+):([\w.-]+)['"]/g;
+        const prodPattern = /(?:implementation|api|compile|runtimeOnly|compileOnly)\s*(?:\()?['"]([\w._-]+):([\w._-]+):([\w._-]+)['"]\)?/g;
         while ((match = prodPattern.exec(content)) !== null) {
             const name = `${match[1]}:${match[2]}`;
             const version = match[3];
             prodDeps.set(name, version);
         }
         // Test dependencies
-        const testPattern = /(?:testImplementation|testCompile|testRuntimeOnly|androidTestImplementation)\s*(?:\()?['"]([\w.-]+):([\w.-]+):([\w.-]+)['"]/g;
+        const testPattern = /(?:testImplementation|testCompile|testRuntimeOnly|androidTestImplementation)\s*(?:\()?['"]([\w._-]+):([\w._-]+):([\w._-]+)['"]\)?/g;
         while ((match = testPattern.exec(content)) !== null) {
             const name = `${match[1]}:${match[2]}`;
             const version = match[3];
             testDeps.set(name, version);
         }
         // Kotlin DSL format with parentheses
-        const kotlinPattern = /(?:implementation|api|compile|runtimeOnly|compileOnly)\s*\(\s*['"]([\w.-]+):([\w.-]+):([\w.-]+)['"]\s*\)/g;
+        const kotlinPattern = /(?:implementation|api|compile|runtimeOnly|compileOnly)\s*\(\s*['"]([\w._-]+):([\w._-]+):([\w._-]+)['"]\s*\)/g;
         while ((match = kotlinPattern.exec(content)) !== null) {
             const name = `${match[1]}:${match[2]}`;
             const version = match[3];
             prodDeps.set(name, version);
         }
-        const kotlinTestPattern = /(?:testImplementation|testCompile|testRuntimeOnly|androidTestImplementation)\s*\(\s*['"]([\w.-]+):([\w.-]+):([\w.-]+)['"]\s*\)/g;
+        const kotlinTestPattern = /(?:testImplementation|testCompile|testRuntimeOnly|androidTestImplementation)\s*\(\s*['"]([\w._-]+):([\w._-]+):([\w._-]+)['"]\s*\)/g;
         while ((match = kotlinTestPattern.exec(content)) !== null) {
             const name = `${match[1]}:${match[2]}`;
             const version = match[3];
@@ -45137,10 +45302,35 @@ function parseBuildGradle(content) {
 const MAX_NESTING_DEPTH = 20;
 /**
  * Check if content exceeds safe nesting depth
+ * Note: This is a heuristic check for TOML - brackets in strings may cause false positives,
+ * but the actual toml.parse will still catch malformed input
  */
 function checkNestingDepth(content, maxDepth) {
     let depth = 0;
+    let inString = false;
+    let stringChar = '';
+    let escape = false;
     for (const char of content) {
+        if (escape) {
+            escape = false;
+            continue;
+        }
+        if (char === '\\' && inString) {
+            escape = true;
+            continue;
+        }
+        if ((char === '"' || char === "'") && !inString) {
+            inString = true;
+            stringChar = char;
+            continue;
+        }
+        if (char === stringChar && inString) {
+            inString = false;
+            stringChar = '';
+            continue;
+        }
+        if (inString)
+            continue;
         if (char === '{' || char === '[') {
             depth++;
             if (depth > maxDepth) {
@@ -45149,6 +45339,10 @@ function checkNestingDepth(content, maxDepth) {
         }
         else if (char === '}' || char === ']') {
             depth--;
+            // Negative depth indicates malformed input
+            if (depth < 0) {
+                return false;
+            }
         }
     }
     return true;
@@ -45242,12 +45436,16 @@ function parseCsproj(content) {
         let parsed = null;
         parseString(content, {
             async: false,
+            // Security: Strict mode for proper XML parsing
+            strict: true,
             // Security: Disable external entities to prevent XXE attacks
             explicitCharkey: false,
             trim: true,
             normalize: true,
-            // Prevent entity expansion attacks
-            strict: true,
+            // Disable namespace processing (not needed, reduces attack surface)
+            xmlns: false,
+            // Use explicit arrays for consistent structure
+            explicitArray: true,
         }, (err, result) => {
             if (!err) {
                 parsed = result;
@@ -45342,9 +45540,15 @@ const DEPENDENCY_FILE_PATTERNS = [
     },
     {
         ecosystem: 'python',
-        fileNames: ['poetry.lock', 'Pipfile.lock'],
+        fileNames: ['poetry.lock'],
         extensions: [],
         parser: parsePoetryLock,
+    },
+    {
+        ecosystem: 'python',
+        fileNames: ['Pipfile.lock'],
+        extensions: [],
+        parser: parsePipfileLock,
     },
     // Go
     {
@@ -47889,7 +48093,13 @@ function sanitizeForMarkdown(input, maxLength) {
     let sanitized = input.slice(0, maxLength);
     // Remove null bytes and control characters (except newline/tab)
     sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
-    // Escape characters that could be used for markdown injection
+    // Step 1: Escape HTML entities first (before removing tags)
+    sanitized = sanitized.replace(/&/g, '&amp;');
+    sanitized = sanitized.replace(/</g, '&lt;');
+    sanitized = sanitized.replace(/>/g, '&gt;');
+    // Step 2: Remove any remaining HTML-like patterns (defense in depth)
+    sanitized = sanitized.replace(/&lt;[^&]*&gt;/g, '');
+    // Step 3: Escape characters that could be used for markdown injection
     // Escape backticks (prevents code block injection)
     sanitized = sanitized.replace(/`/g, '\\`');
     // Escape pipe characters (prevents table manipulation)
@@ -47897,12 +48107,6 @@ function sanitizeForMarkdown(input, maxLength) {
     // Escape square brackets and parentheses (prevents link injection)
     sanitized = sanitized.replace(/\[/g, '\\[');
     sanitized = sanitized.replace(/\]/g, '\\]');
-    // Remove HTML tags to prevent XSS (GitHub sanitizes, but defense in depth)
-    sanitized = sanitized.replace(/<[^>]*>/g, '');
-    // Escape HTML entities
-    sanitized = sanitized.replace(/&/g, '&amp;');
-    sanitized = sanitized.replace(/</g, '&lt;');
-    sanitized = sanitized.replace(/>/g, '&gt;');
     return sanitized;
 }
 /**
@@ -48151,8 +48355,8 @@ async function getFileAtRef(filePath, ref) {
         coreExports.warning(`Skipping invalid file path: ${filePath}`);
         return null;
     }
-    // Validate ref format (should be a valid git SHA)
-    if (!/^[a-f0-9]{40}$/i.test(ref)) {
+    // Validate ref format (should be a valid git SHA - full or abbreviated)
+    if (!/^[a-f0-9]{7,40}$/i.test(ref)) {
         coreExports.warning(`Invalid git ref format: ${ref}`);
         return null;
     }
@@ -48171,7 +48375,8 @@ async function getFileAtRef(filePath, ref) {
             return null;
         }
         // Limit file size to prevent memory issues (10MB max)
-        if (content.length > 10 * 1024 * 1024) {
+        // Use Buffer.byteLength for accurate byte size (handles multi-byte UTF-8 chars)
+        if (Buffer.byteLength(content, 'utf8') > 10 * 1024 * 1024) {
             coreExports.warning(`File too large, skipping: ${filePath}`);
             return null;
         }
