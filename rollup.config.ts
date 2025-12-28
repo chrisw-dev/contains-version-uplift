@@ -15,11 +15,12 @@ export default defineConfig({
   plugins: [
     typescript({
       tsconfig: './tsconfig.json',
-      declaration: false,
-      declarationMap: false,
-      sourceMap: false,
+      compilerOptions: {
+        declaration: false,
+        declarationMap: false,
+        sourceMap: false,
+      },
       outDir: './dist',
-      module: 'esnext',
     }),
     resolve({
       preferBuiltins: true,
