@@ -38,11 +38,8 @@ async function getChangedFiles(baseSha: string, headSha: string): Promise<string
  */
 function isValidFilePath(filePath: string): boolean {
   // Prevent path traversal attacks
+  // Note: The check for absolute paths (startsWith '/') also covers /etc, /proc, /sys
   if (filePath.includes('..') || filePath.startsWith('/') || filePath.includes('\0')) {
-    return false;
-  }
-  // Ensure path doesn't try to access system files
-  if (filePath.startsWith('/etc') || filePath.startsWith('/proc') || filePath.startsWith('/sys')) {
     return false;
   }
   return true;
@@ -81,7 +78,6 @@ async function getFileAtRef(filePath: string, ref: string): Promise<string | nul
     }
 
     // Limit file size to prevent memory issues (10MB max)
-    // Use Buffer.byteLength for accurate byte size (handles multi-byte UTF-8 chars)
     if (Buffer.byteLength(content, 'utf8') > 10 * 1024 * 1024) {
       core.warning(`File too large, skipping: ${filePath}`);
       return null;

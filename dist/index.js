@@ -33673,8 +33673,13 @@ function parseYarnLock(content) {
                     // If the name starts with @, we need to find the second @
                     if (cleanLine.startsWith('@')) {
                         const secondAtIndex = cleanLine.indexOf('@', 1);
+                        // Ensure secondAtIndex is valid (> 0) to handle malformed input
                         if (secondAtIndex > 0) {
                             currentPackage = cleanLine.substring(0, secondAtIndex);
+                        }
+                        else {
+                            // Malformed scoped package line, skip it
+                            currentPackage = null;
                         }
                     }
                 }
@@ -38321,8 +38326,10 @@ function parseGemfileLock(content) {
                 inSpecs = true;
                 continue;
             }
-            // End of specs section (new section starts)
-            if (inSpecs && line.match(/^[A-Z]/)) {
+            // End of specs section - check for known section names to avoid false positives
+            // from gem names that might start with uppercase letters
+            if (inSpecs &&
+                /^(GEM|GIT|PATH|PLATFORMS|DEPENDENCIES|RUBY VERSION|BUNDLED WITH)/.test(line)) {
                 inSpecs = false;
                 continue;
             }
@@ -45166,7 +45173,9 @@ function parsePomXml(content) {
     const prodDeps = new Map();
     const testDeps = new Map();
     try {
-        // Synchronous parsing using callback with security options
+        // Note: We use the callback-based parseString with async: false for synchronous parsing.
+        // This pattern is intentional - parsePomXml is a sync function to match the parser interface.
+        // The parseStringPromise alternative would require async/await throughout the parser system.
         let parsed = null;
         parseString(content, {
             async: false,
@@ -45308,29 +45317,46 @@ const MAX_NESTING_DEPTH = 20;
 function checkNestingDepth(content, maxDepth) {
     let depth = 0;
     let inString = false;
-    let stringChar = '';
+    let stringDelimiter = '';
     let escape = false;
-    for (const char of content) {
+    let i = 0;
+    while (i < content.length) {
+        const char = content[i];
         if (escape) {
             escape = false;
+            i++;
             continue;
         }
         if (char === '\\' && inString) {
             escape = true;
+            i++;
             continue;
         }
-        if ((char === '"' || char === "'") && !inString) {
+        // Handle string delimiters (including TOML triple-quoted strings)
+        if (!inString && (char === '"' || char === "'")) {
+            // Check for triple-quoted strings (""" or ''')
+            if (content.slice(i, i + 3) === char.repeat(3)) {
+                inString = true;
+                stringDelimiter = char.repeat(3);
+                i += 3;
+                continue;
+            }
             inString = true;
-            stringChar = char;
+            stringDelimiter = char;
+            i++;
             continue;
         }
-        if (char === stringChar && inString) {
-            inString = false;
-            stringChar = '';
+        if (inString) {
+            // Check for end of string
+            if (content.slice(i, i + stringDelimiter.length) === stringDelimiter) {
+                inString = false;
+                i += stringDelimiter.length;
+                stringDelimiter = '';
+                continue;
+            }
+            i++;
             continue;
         }
-        if (inString)
-            continue;
         if (char === '{' || char === '[') {
             depth++;
             if (depth > maxDepth) {
@@ -45344,6 +45370,7 @@ function checkNestingDepth(content, maxDepth) {
                 return false;
             }
         }
+        i++;
     }
     return true;
 }
@@ -48098,6 +48125,10 @@ function sanitizeForMarkdown(input, maxLength) {
     sanitized = sanitized.replace(/</g, '&lt;');
     sanitized = sanitized.replace(/>/g, '&gt;');
     // Step 2: Remove any remaining HTML-like patterns (defense in depth)
+    // After escaping, patterns like "<script>" become "&lt;script&gt;"
+    // This regex removes those escaped HTML-like strings as an extra safety measure
+    // Note: This is intentional defense-in-depth - the escaping above already
+    // neutralizes HTML, but we remove the escaped patterns for cleaner output
     sanitized = sanitized.replace(/&lt;[^&]*&gt;/g, '');
     // Step 3: Escape characters that could be used for markdown injection
     // Escape backticks (prevents code block injection)
@@ -48337,11 +48368,8 @@ async function getChangedFiles(baseSha, headSha) {
  */
 function isValidFilePath(filePath) {
     // Prevent path traversal attacks
+    // Note: The check for absolute paths (startsWith '/') also covers /etc, /proc, /sys
     if (filePath.includes('..') || filePath.startsWith('/') || filePath.includes('\0')) {
-        return false;
-    }
-    // Ensure path doesn't try to access system files
-    if (filePath.startsWith('/etc') || filePath.startsWith('/proc') || filePath.startsWith('/sys')) {
         return false;
     }
     return true;
@@ -48375,7 +48403,6 @@ async function getFileAtRef(filePath, ref) {
             return null;
         }
         // Limit file size to prevent memory issues (10MB max)
-        // Use Buffer.byteLength for accurate byte size (handles multi-byte UTF-8 chars)
         if (Buffer.byteLength(content, 'utf8') > 10 * 1024 * 1024) {
             coreExports.warning(`File too large, skipping: ${filePath}`);
             return null;

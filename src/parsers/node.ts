@@ -220,8 +220,12 @@ export function parseYarnLock(content: string): ParsedDependencies[] {
           // If the name starts with @, we need to find the second @
           if (cleanLine.startsWith('@')) {
             const secondAtIndex = cleanLine.indexOf('@', 1);
+            // Ensure secondAtIndex is valid (> 0) to handle malformed input
             if (secondAtIndex > 0) {
               currentPackage = cleanLine.substring(0, secondAtIndex);
+            } else {
+              // Malformed scoped package line, skip it
+              currentPackage = null;
             }
           }
         }

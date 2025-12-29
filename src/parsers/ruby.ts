@@ -75,8 +75,12 @@ export function parseGemfileLock(content: string): ParsedDependencies[] {
         continue;
       }
 
-      // End of specs section (new section starts)
-      if (inSpecs && line.match(/^[A-Z]/)) {
+      // End of specs section - check for known section names to avoid false positives
+      // from gem names that might start with uppercase letters
+      if (
+        inSpecs &&
+        /^(GEM|GIT|PATH|PLATFORMS|DEPENDENCIES|RUBY VERSION|BUNDLED WITH)/.test(line)
+      ) {
         inSpecs = false;
         continue;
       }

@@ -16,6 +16,8 @@ export default defineConfig({
     typescript({
       tsconfig: './tsconfig.json',
       compilerOptions: {
+        module: 'esnext',
+        moduleResolution: 'bundler',
         declaration: false,
         declarationMap: false,
         sourceMap: false,
