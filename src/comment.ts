@@ -31,6 +31,10 @@ function sanitizeForMarkdown(input: string, maxLength: number): string {
   sanitized = sanitized.replace(/>/g, '&gt;');
 
   // Step 2: Remove any remaining HTML-like patterns (defense in depth)
+  // After escaping, patterns like "<script>" become "&lt;script&gt;"
+  // This regex removes those escaped HTML-like strings as an extra safety measure
+  // Note: This is intentional defense-in-depth - the escaping above already
+  // neutralizes HTML, but we remove the escaped patterns for cleaner output
   sanitized = sanitized.replace(/&lt;[^&]*&gt;/g, '');
 
   // Step 3: Escape characters that could be used for markdown injection

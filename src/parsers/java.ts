@@ -38,7 +38,9 @@ export function parsePomXml(content: string): ParsedDependencies[] {
   const testDeps = new Map<string, string>();
 
   try {
-    // Synchronous parsing using callback with security options
+    // Note: We use the callback-based parseString with async: false for synchronous parsing.
+    // This pattern is intentional - parsePomXml is a sync function to match the parser interface.
+    // The parseStringPromise alternative would require async/await throughout the parser system.
     let parsed: PomXml | null = null;
     parseString(
       content,

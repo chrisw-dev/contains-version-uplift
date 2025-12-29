@@ -1,6 +1,6 @@
 name: 'Dependency Version Uplift Check'
 description: 'Detects and reports dependency version changes in Pull Requests across multiple ecosystems'
-author: 'TODO: Set before publishing'
+author: 'Chris Walters'
 
 branding:
   icon: 'package'
@@ -8,9 +8,8 @@ branding:
 
 inputs:
   token:
-    description: 'GitHub token for API access (used for PR comments)'
+    description: 'GitHub token for API access (used for PR comments). Defaults to github.token if not provided.'
     required: false
-    default: ${{ github.token }}
   ecosystems:
     description: 'Comma-separated list of ecosystems to check. Options: node, python, go, ruby, java, rust, dotnet. Use "all" for all ecosystems.'
     required: false

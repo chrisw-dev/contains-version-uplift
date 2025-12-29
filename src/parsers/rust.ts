@@ -14,33 +14,51 @@ const MAX_NESTING_DEPTH = 20;
 function checkNestingDepth(content: string, maxDepth: number): boolean {
   let depth = 0;
   let inString = false;
-  let stringChar = '';
+  let stringDelimiter = '';
   let escape = false;
+  let i = 0;
 
-  for (const char of content) {
+  while (i < content.length) {
+    const char = content[i];
+
     if (escape) {
       escape = false;
+      i++;
       continue;
     }
 
     if (char === '\\' && inString) {
       escape = true;
+      i++;
       continue;
     }
 
-    if ((char === '"' || char === "'") && !inString) {
+    // Handle string delimiters (including TOML triple-quoted strings)
+    if (!inString && (char === '"' || char === "'")) {
+      // Check for triple-quoted strings (""" or ''')
+      if (content.slice(i, i + 3) === char.repeat(3)) {
+        inString = true;
+        stringDelimiter = char.repeat(3);
+        i += 3;
+        continue;
+      }
       inString = true;
-      stringChar = char;
+      stringDelimiter = char;
+      i++;
       continue;
     }
 
-    if (char === stringChar && inString) {
-      inString = false;
-      stringChar = '';
+    if (inString) {
+      // Check for end of string
+      if (content.slice(i, i + stringDelimiter.length) === stringDelimiter) {
+        inString = false;
+        i += stringDelimiter.length;
+        stringDelimiter = '';
+        continue;
+      }
+      i++;
       continue;
     }
-
-    if (inString) continue;
 
     if (char === '{' || char === '[') {
       depth++;
@@ -54,6 +72,7 @@ function checkNestingDepth(content: string, maxDepth: number): boolean {
         return false;
       }
     }
+    i++;
   }
   return true;
 }
