@@ -1,0 +1,87 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 #v6.0.1
+        with:
+          ref: ${{ github.ref }}
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f #v6.1.0
+        with:
+          node-version-file: '.node-version'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build dist/
+        run: npm run bundle
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Commit dist/ to tag
+        run: |
+          git add -f dist/
+          if git diff --staged --quiet; then
+            echo "No changes to dist/"
+          else
+            git commit -m "chore: build dist for ${{ github.ref_name }}"
+            git push origin HEAD:refs/tags/${{ github.ref_name }} --force
+          fi
+
+      - name: Extract version parts
+        id: version
+        run: |
+          VERSION="${{ github.ref_name }}"
+          # Remove 'v' prefix
+          VERSION="${VERSION#v}"
+          MAJOR="${VERSION%%.*}"
+          MINOR="${VERSION#*.}"
+          MINOR="${MINOR%%.*}"
+          echo "major=$MAJOR" >> $GITHUB_OUTPUT
+          echo "minor=$MINOR" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Update major version tag
+        run: |
+          MAJOR="v${{ steps.version.outputs.major }}"
+          echo "Updating major version tag: $MAJOR"
+          git tag -fa "$MAJOR" -m "Update $MAJOR to ${{ github.ref_name }}"
+          git push origin "$MAJOR" --force
+
+      - name: Update minor version tag
+        run: |
+          MINOR="v${{ steps.version.outputs.major }}.${{ steps.version.outputs.minor }}"
+          echo "Updating minor version tag: $MINOR"
+          git tag -fa "$MINOR" -m "Update $MINOR to ${{ github.ref_name }}"
+          git push origin "$MINOR" --force
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@c95fe1489396fe8a9eb87c0abf8aa5b2ef267fda #v2.2.1
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          generate_release_notes: true
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}

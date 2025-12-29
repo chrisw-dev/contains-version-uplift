@@ -1,0 +1,186 @@
+{
+  "comment_content": "The file size limit check is implemented incorrectly. The condition checks if content.length is greater than 10MB, but JavaScript string length measures the number of characters, not bytes. For multi-byte UTF-8 characters, this could allow files significantly larger than 10MB in actual byte size, potentially causing memory issues.\n\nUse Buffer.byteLength(content, 'utf8') to correctly measure byte size.",
+  "comment_type": "bug",
+  "end_line": 84,
+  "file_location": "src/main.ts",
+  "fixed": true,
+  "severity": "moderate",
+  "start_line": 84,
+  "response": "Fixed. Changed from content.length to Buffer.byteLength(content, 'utf8') for accurate byte size measurement that correctly handles multi-byte UTF-8 characters."
+}
+
+{
+  "comment_content": "The nesting depth check is flawed because it doesn't properly handle nested structures in JSON/TOML. The implementation simply increments for opening brackets and decrements for closing ones, but doesn't account for brackets within strings, which could give false positives. Additionally, the depth can go negative if there are more closing brackets than opening ones, which should be caught as malformed input.\n\nConsider using a proper parser with built-in depth limiting or add string handling to the depth check.",
+  "comment_type": "bug",
+  "end_line": 30,
+  "file_location": "src/parsers/node.ts",
+  "fixed": true,
+  "severity": "moderate",
+  "start_line": 30,
+  "response": "Fixed. Updated checkJsonDepth to track string state (handling escape sequences) and skip brackets inside strings. Added detection for negative depth to catch malformed input."
+}
+
+{
+  "comment_content": "The nesting depth check is flawed because it doesn't properly handle nested structures in TOML. The implementation simply increments for opening brackets and decrements for closing ones, but doesn't account for brackets within strings, which could give false positives. Additionally, the depth can go negative if there are more closing brackets than opening ones, which should be caught as malformed input.\n\nConsider using a proper parser with built-in depth limiting or add string handling to the depth check.",
+  "comment_type": "bug",
+  "end_line": 17,
+  "file_location": "src/parsers/python.ts",
+  "fixed": true,
+  "severity": "moderate",
+  "start_line": 17,
+  "response": "Fixed. Updated checkNestingDepth to track string state (handling both single and double quotes, plus escape sequences) and skip brackets inside strings. Added detection for negative depth."
+}
+
+{
+  "comment_content": "The nesting depth check is flawed because it doesn't properly handle nested structures in TOML. The implementation simply increments for opening brackets and decrements for closing ones, but doesn't account for brackets within strings, which could give false positives. Additionally, the depth can go negative if there are more closing brackets than opening ones, which should be caught as malformed input.\n\nConsider using a proper parser with built-in depth limiting or add string handling to the depth check.",
+  "comment_type": "bug",
+  "end_line": 12,
+  "file_location": "src/parsers/rust.ts",
+  "fixed": true,
+  "severity": "moderate",
+  "start_line": 12,
+  "response": "Fixed. Updated checkNestingDepth to track string state (handling both single and double quotes, plus escape sequences) and skip brackets inside strings. Added detection for negative depth."
+}
+
+{
+  "comment_content": "The MAX_DEPENDENCIES limit is checked only for PEP 621 format dependencies but not enforced for Poetry format dependencies, which could allow processing an unbounded number of dependencies from Poetry configurations. This inconsistency could lead to performance issues or denial-of-service if a malicious pyproject.toml contains excessive Poetry dependencies.\n\nApply the MAX_DEPENDENCIES limit consistently across all dependency sections in the parser.",
+  "comment_type": "bug",
+  "end_line": 199,
+  "file_location": "src/parsers/python.ts",
+  "fixed": true,
+  "severity": "moderate",
+  "start_line": 154,
+  "response": "Fixed. Added MAX_DEPENDENCIES limit enforcement to all Poetry format sections: poetry.dependencies, poetry.dev-dependencies, and poetry.group.*.dependencies."
+}
+
+{
+  "comment_content": "The sanitizeForMarkdown function has a logical issue: it attempts to escape HTML entities AFTER removing HTML tags and will re-escape already-escaped content. The order should be: first escape HTML entities (&, <, >), then remove any remaining HTML tags, then escape Markdown-specific characters. The current order could lead to double-escaping or ineffective sanitization.\n\nReorder the sanitization steps to: 1) escape HTML entities, 2) remove HTML tags (which should now be escaped), 3) escape Markdown characters.",
+  "comment_type": "bug",
+  "end_line": 47,
+  "file_location": "src/comment.ts",
+  "fixed": true,
+  "severity": "moderate",
+  "start_line": 17,
+  "response": "Fixed. Reordered sanitization: 1) Escape HTML entities first, 2) Remove HTML-like patterns (now escaped as &lt;...&gt;), 3) Escape markdown characters. This prevents double-escaping and ensures proper sanitization."
+}
+
+{
+  "comment_content": "The Gradle dependency pattern regex only matches dependencies with hyphens and dots in group/artifact IDs ([\\w.-]+), but underscore is also a valid character in identifiers. This will fail to match valid Gradle dependencies that contain underscores in their group or artifact IDs.\n\nUpdate the regex pattern to include underscores in the character class or use a more inclusive pattern.",
+  "comment_type": "bug",
+  "end_line": 140,
+  "file_location": "src/parsers/java.ts",
+  "fixed": true,
+  "severity": "moderate",
+  "start_line": 139,
+  "response": "Fixed. Updated all four Gradle regex patterns (prodPattern, testPattern, kotlinPattern, kotlinTestPattern) to use [\\w._-]+ which includes underscores."
+}
+
+{
+  "comment_content": "The pnpm lock parser has inconsistent version handling. In the importers section, it checks for 'link:' prefixes to skip linked packages, but in the fallback packages section, it doesn't perform this check. This could result in including local workspace packages in the dependency list when using the fallback path.\n\nAdd the 'link:' prefix check to the packages fallback section as well for consistency.",
+  "comment_type": "bug",
+  "end_line": 278,
+  "file_location": "src/parsers/node.ts",
+  "fixed": true,
+  "severity": "moderate",
+  "start_line": 263,
+  "response": "Fixed. Added 'if (version.startsWith('link:')) continue;' check to the packages fallback section for consistency with the importers section."
+}
+
+{
+  "comment_content": "The Pipfile.lock parser function name is misleading. The parsePoetryLock function is registered to handle 'Pipfile.lock' in the patterns list, but the function itself is specifically designed for Poetry's lock format with its 'category' field. Pipfile.lock has a different structure and this parser will not correctly parse it.\n\nEither create a separate parser for Pipfile.lock or rename the function to clarify it only handles poetry.lock format.",
+  "comment_type": "bug",
+  "end_line": 69,
+  "file_location": "src/parsers/index.ts",
+  "fixed": true,
+  "severity": "moderate",
+  "start_line": 67,
+  "response": "Fixed. Created a new parsePipfileLock function in python.ts that correctly handles the Pipfile.lock JSON format (with 'default' and 'develop' sections). Updated the parser registry to use separate entries for poetry.lock and Pipfile.lock."
+}
+
+{
+  "comment_content": "Missing XML entity expansion (XXE) protection. While the parser configuration includes 'strict: true', it doesn't explicitly disable external entity processing or set entity expansion limits. The xml2js library requires explicit configuration to prevent XXE attacks.\n\nAdd xmlns: false and explicitArray options, and consider adding maxDepth limiting for XML structures similar to the JSON/TOML parsers.",
+  "comment_type": "security",
+  "end_line": 53,
+  "file_location": "src/parsers/java.ts",
+  "fixed": true,
+  "severity": "moderate",
+  "start_line": 43,
+  "response": "Fixed. Added xmlns: false to disable namespace processing (reduces attack surface) and explicitArray: true for consistent structure. Reorganized comments to clarify security options."
+}
+
+{
+  "comment_content": "Missing XML entity expansion (XXE) protection. While the parser configuration includes 'strict: true', it doesn't explicitly disable external entity processing or set entity expansion limits. The xml2js library requires explicit configuration to prevent XXE attacks.\n\nAdd xmlns: false and explicitArray options, and consider adding maxDepth limiting for XML structures.",
+  "comment_type": "security",
+  "end_line": 46,
+  "file_location": "src/parsers/dotnet.ts",
+  "fixed": true,
+  "severity": "moderate",
+  "start_line": 36,
+  "response": "Fixed. Added xmlns: false to disable namespace processing (reduces attack surface) and explicitArray: true for consistent structure. Reorganized comments to clarify security options."
+}
+
+{
+  "comment_content": "The package-lock.json v3 parser has a logic issue: it skips the root package by checking if path is empty string, but then attempts to extract the package name using string operations that could fail. The condition 'if (!path || path === '')' will skip when path is empty, but the subsequent 'path.replace().split().pop()' could still return an empty string which is then checked again. This creates redundant logic and potential edge cases.\n\nSimplify by checking the path prefix more explicitly, e.g., 'if (path === '' || path === 'node_modules') continue;'",
+  "comment_type": "maintainability",
+  "end_line": 123,
+  "file_location": "src/parsers/node.ts",
+  "fixed": true,
+  "severity": "nit",
+  "start_line": 115,
+  "response": "Fixed. Simplified path checking: 1) Skip empty path and 'node_modules' root, 2) Require path to start with 'node_modules/', 3) Removed redundant || '' fallback since we check for truthy name."
+}
+
+{
+  "comment_content": "The error handling pattern using empty catch blocks without any logging makes debugging difficult. When parsers fail, there's no indication of what went wrong, which could hide issues like malformed files, parser bugs, or security-related rejections. While returning empty arrays is acceptable for the action's flow, at minimum add debug logging.\n\nConsider adding core.debug() calls in catch blocks to log parsing errors for troubleshooting.",
+  "comment_type": "maintainability",
+  "end_line": 90,
+  "file_location": "src/parsers/node.ts",
+  "fixed": true,
+  "severity": "moderate",
+  "start_line": 88,
+  "response": "Fixed. Added core.debug() logging to all catch blocks in node.ts parser functions, including the specific parser name and error message for easier troubleshooting."
+}
+
+{
+  "comment_content": "The error handling pattern using empty catch blocks without any logging makes debugging difficult. When parsers fail, there's no indication of what went wrong, which could hide issues like malformed files, parser bugs, or security-related rejections. While returning empty arrays is acceptable for the action's flow, at minimum add debug logging.\n\nConsider adding core.debug() calls in catch blocks to log parsing errors for troubleshooting.",
+  "comment_type": "maintainability",
+  "end_line": 90,
+  "file_location": "src/parsers/node.ts",
+  "fixed": true,
+  "severity": "moderate",
+  "start_line": 88,
+  "response": "Duplicate of previous item - fixed. Added core.debug() logging to all catch blocks in node.ts."
+}
+
+{
+  "comment_content": "Hardcoded user display name \"Your Name\" should be replaced with the actual author name or organization. This appears in the action marketplace listing and affects discoverability and credibility.",
+  "comment_type": "documentation",
+  "end_line": 3,
+  "file_location": "action.yml",
+  "fixed": true,
+  "severity": "moderate",
+  "start_line": 3,
+  "response": "Updated placeholder to 'TODO: Set before publishing' to make it clear this needs to be replaced before publishing the action."
+}
+
+{
+  "comment_content": "The README examples reference \"chrisw-dev/contains-version-uplift@v1\" as a placeholder. This should be updated to the actual repository owner/name before publishing, or clearly marked as a placeholder that users need to replace.\n\nUpdate with the actual repository path or add a clear note that users should replace this placeholder.",
+  "comment_type": "documentation",
+  "end_line": 56,
+  "file_location": "README.md",
+  "fixed": true,
+  "severity": "moderate",
+  "start_line": 48,
+  "response": "Added '# TODO: Replace with actual repository path before publishing' comments above each usage example to clearly mark the placeholders."
+}
+
+{
+  "comment_content": "The package.json has an empty author field, which should be populated before publishing. This affects attribution and package metadata in the npm registry.",
+  "comment_type": "documentation",
+  "end_line": 27,
+  "file_location": "package.json",
+  "fixed": true,
+  "severity": "nit",
+  "start_line": 27,
+  "response": "Updated placeholder to 'TODO: Set before publishing' to make it clear this needs to be replaced before publishing the package."
+}
