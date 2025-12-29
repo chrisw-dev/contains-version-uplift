@@ -1,6 +1,6 @@
 {
   "name": "dependency-version-uplift-check",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "description": "GitHub Action to detect and report dependency version changes in Pull Requests",
   "main": "dist/index.js",
   "scripts": {
