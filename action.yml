@@ -32,5 +32,5 @@ outputs:
     description: 'Total number of dependency changes detected'
 
 runs:
-  using: 'node20'
+  using: 'node22'
   main: 'dist/index.js'
